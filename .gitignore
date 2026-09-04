@@ -4,6 +4,7 @@
 .nuxt
 .nitro
 .cache
+.pnpm-store
 dist
 
 # Node dependencies
@@ -17,6 +18,7 @@ logs
 .DS_Store
 .fleet
 .idea
+.vscode
 
 # Local env files
 .env
@@ -24,12 +26,13 @@ logs
 .env.example
 
 # Database
-data/
-/data/
-packages/*/data/
-*.db
-*.db-shm
-*.db-wal
+# Removing them on this branch to persist DB between machines
+# data/
+# /data/
+# packages/*/data/
+# *.db
+# *.db-shm
+# *.db-wal
 
 # Uploads (data folders, not API routes)
 uploads/
