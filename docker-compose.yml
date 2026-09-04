@@ -1,4 +1,27 @@
 services:
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+    image: dm-hero:dev
+    container_name: dm-hero-dev
+    ports:
+      - '3000:3000'
+    volumes:
+      # Mount the entire project directory to the container for local development
+      - .:/app
+      # In case you want to test you changes on the same data as you production container,
+      #   map the `data` and `uploads` directories in the same manner as the production container does.
+      - ./data:/app/packages/app/data
+      - ./uploads:/app/packages/app/uploads
+    environment:
+      # Nuxt runtime config
+      NODE_ENV: development
+      NITRO_PORT: 3000
+      NITRO_HOST: 0.0.0.0
+    command: pnpm run dev
+
   dm-hero:
     build:
       context: .
