@@ -409,7 +409,7 @@ const showGeminiKey = ref(false)
 
 const providerOptions = [
   { value: 'openai', title: 'OpenAI (GPT, DALL-E)' },
-  { value: 'gemini', title: 'Google Gemini (Gemini, Imagen)' },
+  { value: 'gemini', title: 'Google Gemini' },
 ]
 
 const openaiModels = ['gpt-4o-mini', 'gpt-4o', 'gpt-4.1-mini', 'gpt-4.1', 'gpt-4.5-preview']

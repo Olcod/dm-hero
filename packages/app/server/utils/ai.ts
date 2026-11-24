@@ -135,7 +135,7 @@ export async function generateImage(prompt: string, options?: ImageGenerationOpt
   const { provider, apiKey } = getActiveProvider()
 
   if (provider === 'gemini') {
-    return generateImageImagen(apiKey, prompt, options)
+    return generateImageGemini(apiKey, prompt, options)
   }
   return generateImageDallE(apiKey, prompt, options)
 }
@@ -187,8 +187,22 @@ async function generateImageDallE(apiKey: string, prompt: string, options?: Imag
   return Buffer.from(await imageResponse.arrayBuffer())
 }
 
-// Google Imagen 4: POST predict → base64 → Buffer
-async function generateImageImagen(apiKey: string, prompt: string, options?: ImageGenerationOptions): Promise<Buffer> {
+interface GeminiImageResponse {
+  candidates?: Array<{
+    content?: { parts?: Array<{ inlineData?: { data?: string } }> }
+    finishReason?: string
+  }>
+}
+
+/** The image of a Gemini generateContent response, or null when it holds none (e.g. blocked by a safety filter). */
+export function extractGeminiImage(data: GeminiImageResponse): Buffer | null {
+  const parts = data.candidates?.[0]?.content?.parts ?? []
+  const base64 = parts.find(part => part.inlineData?.data)?.inlineData?.data
+  return base64 ? Buffer.from(base64, 'base64') : null
+}
+
+// Gemini image model: POST generateContent → base64 → Buffer
+async function generateImageGemini(apiKey: string, prompt: string, options?: ImageGenerationOptions): Promise<Buffer> {
   const aspectRatio = options?.aspectRatio === '16:9' ? '16:9' : '1:1'
 
   const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image:generateContent', {
@@ -198,35 +212,29 @@ async function generateImageImagen(apiKey: string, prompt: string, options?: Ima
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      contents: [{
-        parts: [{ text: prompt }]
-      }],
+      contents: [{ parts: [{ text: prompt }] }],
       generationConfig: {
         responseModalities: ['IMAGE'],
-        candidateCount: 1, 
-        imageConfig:{
-          aspectRatio: aspectRatio,
-        }
-      }
+        candidateCount: 1,
+        imageConfig: { aspectRatio },
+      },
     }),
   })
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}))
-    const errorMessage = (error as { error?: { message?: string } })?.error?.message || 'Imagen API request failed'
+    const errorMessage = (error as { error?: { message?: string } })?.error?.message || 'Gemini image request failed'
     throw createError({ statusCode: response.status, message: errorMessage })
   }
 
-  const data = await response.json() as {
-    predictions?: Array<{ bytesBase64Encoded?: string }>
+  const data = await response.json() as GeminiImageResponse
+  const image = extractGeminiImage(data)
+  if (!image) {
+    const reason = data.candidates?.[0]?.finishReason
+    throw createError({ statusCode: 500, message: reason ? `Gemini generated no image (${reason})` : 'Gemini generated no image' })
   }
 
-  const base64 = data.predictions?.[0]?.bytesBase64Encoded
-  if (!base64) {
-    throw createError({ statusCode: 500, message: 'No image generated' })
-  }
-
-  return Buffer.from(base64, 'base64')
+  return image
 }
 
 // Test connection for a specific provider (optionally with a test key)
